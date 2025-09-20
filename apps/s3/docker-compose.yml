@@ -16,6 +16,8 @@ services:
       - ../../:/app
     networks:
       - nginx
+    ports:
+      - '9000:9000'
     tty: true
     entrypoint: ['tini', '--']
     command: ['cargo', 'watch', '-x', 'run', '-C', 'apps/s3/backend']

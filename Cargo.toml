@@ -6,8 +6,6 @@ members = ["apps/s3/backend", "packages/rust", "packages/rust-derive"]
 ichwilldich-lib = { path = "packages/rust" }
 
 uuid = "1.18.1"
-openssl = { version = "0.10.73", features = ["vendored"] }
-serde_json = "1.0.143"
 axum = { version = "0.8.4", features = ["macros", "ws", "tracing"] }
 axum-extra = { version = "0.10.1", features = ["cookie", "typed-header"] }
 tracing-subscriber = "0.3.20"
@@ -16,6 +14,11 @@ tracing = "0.1.41"
 tower = "0.5.2"
 tower-http = { version = "0.6.6", features = ["cors", "trace"] }
 http = "1.3.1"
-tokio = { version = "1.47.1", features = ["signal", "rt-multi-thread"] }
+tokio = { version = "1.47.1", features = ["signal", "rt-multi-thread", "fs"] }
 dotenv = "0.15.0"
 thiserror = "2.0.16"
+serde = { version = "1.0.223", features = ["derive"] }
+serde_json = "1.0.143"
+serde-xml-rs = "0.8.1"
+async-trait = "0.1.89"
+hmac = { version = "0.12.1", features = ["std"] }
