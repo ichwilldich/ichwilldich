@@ -1,6 +1,5 @@
 {
   "workspaces": [
-    "packages/svelte",
     "apps/s3/frontend"
   ],
   "devDependencies": {

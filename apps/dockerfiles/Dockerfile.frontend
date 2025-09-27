@@ -1,28 +1,21 @@
 ARG APP
 ARG APP_PATH=apps/${APP}/frontend
-ARG LIB_PATH=packages/svelte
 
 FROM node:22-alpine AS build
 
 ARG APP_PATH
-ARG LIB_PATH
 
 WORKDIR /app/${APP_PATH}
 
 COPY ${APP_PATH}/package.json ./
-COPY ${LIB_PATH}/package.json ../../../${LIB_PATH}/
 COPY package-lock.json package.json ../../../
 
-RUN npm ci
+RUN npm ci -f
 
 COPY ${APP_PATH}/svelte.config.js ${APP_PATH}/tsconfig.json ${APP_PATH}/vite.config.ts ./
 COPY ${APP_PATH}/src ./src
 COPY ${APP_PATH}/static ./static
 
-COPY ${LIB_PATH}/src ../../../${LIB_PATH}/src
-COPY ${LIB_PATH}/svelte.config.js ${LIB_PATH}/tsconfig.json ../../../${LIB_PATH}/
-
-RUN cd ../../../${LIB_PATH} && npm run prepare
 RUN npm run build
 
 FROM node:22-alpine
