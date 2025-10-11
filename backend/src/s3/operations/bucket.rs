@@ -6,6 +6,7 @@ use axum::{
 use centaurus::{bail, error::Result, req::xml::Xml};
 use http::{HeaderMap, StatusCode};
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 use crate::s3::{
   auth::{Identity, S3Auth},
@@ -22,6 +23,7 @@ pub fn router() -> Router {
 }
 
 /// TODO: Handling of additional header options
+#[instrument]
 async fn create_bucket(
   interface: S3Interface,
   Path(bucket): Path<String>,
@@ -48,6 +50,7 @@ async fn create_bucket(
 #[derive(Deserialize, Debug)]
 struct CreateBucketConfiguration {}
 
+#[instrument]
 async fn delete_bucket(
   interface: S3Interface,
   Path(bucket): Path<String>,
@@ -74,7 +77,7 @@ struct ListQuery {
   max_buckets: Option<usize>,
 }
 
-#[axum::debug_handler]
+#[instrument]
 async fn list_buckets(
   interface: S3Interface,
   Query(ListQuery {

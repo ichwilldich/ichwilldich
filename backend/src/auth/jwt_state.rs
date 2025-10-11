@@ -13,7 +13,7 @@ use rsa::{
 };
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
-use tracing::info;
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 use crate::{
@@ -52,6 +52,7 @@ pub struct JwtState {
 }
 
 impl JwtState {
+  #[instrument(skip(self))]
   pub fn create_token<'c, T: AuthSource>(
     &self,
     uuid: T::UserID,
@@ -74,6 +75,7 @@ impl JwtState {
     Ok(self.create_cookie(COOKIE_NAME, token))
   }
 
+  #[instrument(skip(self))]
   pub fn create_cookie<'c>(&self, key: &'c str, token: String) -> Cookie<'c> {
     Cookie::build((key, token))
       .http_only(true)
@@ -84,12 +86,14 @@ impl JwtState {
       .build()
   }
 
+  #[instrument(skip(self))]
   pub fn validate_token(&self, token: &str) -> Result<JwtClaims> {
     let token_data = decode::<JwtClaims>(token, &self.decoding_key, &self.validation)?;
 
     Ok(token_data.claims)
   }
 
+  #[instrument(skip(config, db))]
   pub async fn init(config: &EnvConfig, db: &Connection) -> Self {
     let (key, kid) = if let Ok(key) = db.key().get_key_by_name(JWT_KEY_NAME.into()).await {
       (key.private_key, key.id.to_string())

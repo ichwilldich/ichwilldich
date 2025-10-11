@@ -19,7 +19,7 @@ use jsonwebtoken::{
 use reqwest::{Client, redirect::Policy};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
-use tracing::info;
+use tracing::{info, instrument};
 use url::Url;
 use uuid::Uuid;
 
@@ -39,12 +39,12 @@ pub fn router() -> Router {
     .route("/oidc_callback", get(oidc_callback))
 }
 
-#[derive(Clone, FromReqExtension)]
+#[derive(Clone, FromReqExtension, Debug)]
 pub struct OidcState {
   pub(super) config: Option<OidcConfig>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(super) struct OidcConfig {
   state: Arc<Mutex<HashSet<Uuid>>>,
   nonce: Arc<Mutex<HashSet<Uuid>>>,
@@ -69,6 +69,7 @@ struct OidcConfiguration {
 }
 
 impl OidcState {
+  #[instrument]
   pub async fn new(app_config: &AppConfig) -> Result<Self> {
     let config = if let Some(url) = app_config.config.oidc.oidc_url.value()
       && let Some(client_id) = app_config.config.oidc.oidc_client_id.value()
@@ -118,6 +119,7 @@ impl OidcState {
 }
 
 impl OidcConfig {
+  #[instrument(skip(self))]
   async fn validate_jwk(&self, token: &str) -> Result<()> {
     let header = jsonwebtoken::decode_header(token)?;
 
@@ -170,6 +172,7 @@ struct OidcResponse {
   url: String,
 }
 
+#[instrument(skip(jwt, state, cookies))]
 async fn oidc_url(
   state: OidcState,
   jwt: JwtState,
@@ -235,11 +238,13 @@ struct OidcCallbackQuery {
   error: Option<String>,
 }
 
+#[derive(Debug)]
 struct Redirect {
   location: Url,
 }
 
 impl IntoResponse for Redirect {
+  #[instrument]
   fn into_response(self) -> Response {
     (StatusCode::FOUND, [(LOCATION, self.location.to_string())]).into_response()
   }
@@ -255,6 +260,7 @@ pub struct AuthInfo {
   pub sub: String,
 }
 
+#[instrument(skip(jwt, config, oidc_state, cookies))]
 async fn oidc_callback(
   Query(OidcCallbackQuery { code, state, error }): Query<OidcCallbackQuery>,
   oidc_state: OidcState,

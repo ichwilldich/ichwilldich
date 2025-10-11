@@ -3,6 +3,7 @@ use axum_extra::extract::{CookieJar, cookie::Cookie};
 use centaurus::error::Result;
 use chrono::DateTime;
 use eyre::ContextCompat;
+use tracing::instrument;
 
 use crate::{
   auth::{
@@ -17,6 +18,7 @@ pub fn router() -> Router {
   Router::new().route("/logout", post(logout))
 }
 
+#[instrument(skip(auth, db, state, cookies))]
 async fn logout(
   auth: JwtAuth,
   db: Connection,

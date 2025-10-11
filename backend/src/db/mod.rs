@@ -3,12 +3,14 @@ use std::{ops::Deref, time::Duration};
 use centaurus::FromReqExtension;
 use migration::MigratorTrait;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
+use tracing::instrument;
 
 mod config;
 mod invalid_jwt;
 mod key;
 mod user;
 
+#[instrument(skip(config))]
 pub async fn init_db(config: &crate::config::EnvConfig) -> Connection {
   let mut options = ConnectOptions::new(format!(
     "sqlite:{}/sqlite.db?mode=rwc",

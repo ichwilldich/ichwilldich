@@ -128,10 +128,12 @@ impl CanonicalRequest {
 pub struct StringToSign(String);
 
 impl StringToSign {
+  #[instrument]
   pub fn new(s: String) -> Self {
     Self(s)
   }
 
+  #[instrument]
   pub fn chunked(
     datetime: &DateTime<Utc>,
     credential: &AWS4Credential,
@@ -150,6 +152,7 @@ impl StringToSign {
     StringToSign(string_to_sign)
   }
 
+  #[instrument]
   pub fn chunked_trailer(
     datetime: &DateTime<Utc>,
     credential: &AWS4Credential,
@@ -165,6 +168,7 @@ impl StringToSign {
     StringToSign(string_to_sign)
   }
 
+  #[instrument]
   fn chunked_base(
     datetime: &DateTime<Utc>,
     credential: &AWS4Credential,
@@ -203,6 +207,7 @@ impl StringToSign {
   }
 }
 
+#[instrument]
 fn hmac(key: &[u8], msg: &str) -> Result<Vec<u8>> {
   let mut hmac = Hmac::<Sha256>::new_from_slice(key)?;
   hmac.update(msg.as_bytes());

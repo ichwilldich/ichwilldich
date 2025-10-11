@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, str::FromStr};
+use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use axum::{
   RequestPartsExt,
@@ -11,6 +11,7 @@ use axum_extra::{
 };
 use centaurus::{bail, error::ErrorReport};
 use http::request::Parts;
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
@@ -20,19 +21,21 @@ use crate::{
 
 pub const COOKIE_NAME: &str = "auth_token";
 
-pub trait AuthSource {
-  type UserID: FromStr + ToString;
+pub trait AuthSource: Debug {
+  type UserID: FromStr + ToString + Debug;
 
   fn internal() -> bool {
     false
   }
 }
 
+#[derive(Debug)]
 pub struct AllAuth;
 impl AuthSource for AllAuth {
   type UserID = String;
 }
 
+#[derive(Debug)]
 pub struct InternalAuth;
 impl AuthSource for InternalAuth {
   type UserID = Uuid;
@@ -42,6 +45,7 @@ impl AuthSource for InternalAuth {
   }
 }
 
+#[derive(Debug)]
 pub struct JwtAuth<T: AuthSource = AllAuth> {
   #[allow(unused)]
   pub user_id: T::UserID,
@@ -52,6 +56,7 @@ pub struct JwtAuth<T: AuthSource = AllAuth> {
 impl<S: Sync, T: AuthSource> FromRequestParts<S> for JwtAuth<T> {
   type Rejection = ErrorReport;
 
+  #[instrument(skip(_state))]
   async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
     let bearer = parts.extract::<TypedHeader<Authorization<Bearer>>>().await;
 
@@ -98,6 +103,7 @@ impl<S: Sync, T: AuthSource> FromRequestParts<S> for JwtAuth<T> {
 impl<S: Sync> OptionalFromRequestParts<S> for JwtAuth {
   type Rejection = ErrorReport;
 
+  #[instrument(skip(state))]
   async fn from_request_parts(
     parts: &mut Parts,
     state: &S,

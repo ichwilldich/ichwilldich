@@ -5,6 +5,7 @@ use axum::{
 use axum_extra::extract::CookieJar;
 use centaurus::{bail, error::Result};
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 use crate::{
   auth::{
@@ -31,12 +32,13 @@ async fn key(state: PasswordState) -> Json<KeyRes> {
   Json(KeyRes { key: state.pub_key })
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 struct LoginReq {
   name: String,
   password: String,
 }
 
+#[instrument(skip(state, jwt, db, payload, cookies), fields(name = %payload.name))]
 async fn authenticate(
   state: PasswordState,
   jwt: JwtState,

@@ -6,11 +6,12 @@ use figment::{
   providers::{Env, Serialized},
 };
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 use url::Url;
 
 use crate::s3::storage::StorageType;
 
-#[derive(Deserialize, Serialize, Clone, FromReqExtension)]
+#[derive(Deserialize, Serialize, Clone, FromReqExtension, Debug)]
 pub struct EnvConfig {
   #[serde(flatten)]
   pub base: BaseConfig,
@@ -27,9 +28,14 @@ pub struct EnvConfig {
 
   // s3
   pub s3_port: u16,
+
+  pub metrics_enabled: bool,
+  pub metrics_name: String,
+  pub metrics_labels: Vec<(String, String)>,
 }
 
 impl EnvConfig {
+  #[instrument]
   pub fn parse() -> Self {
     let config = Figment::new()
       .merge(Serialized::defaults(Self::default()))
@@ -49,11 +55,14 @@ impl Default for EnvConfig {
       storage_type: StorageType::NoRaid,
       storage_path: PathBuf::from("/data"),
       s3_port: 9000,
+      metrics_enabled: true,
+      metrics_name: "sagittarius".to_string(),
+      metrics_labels: vec![],
     }
   }
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct DBConfig {
   pub database_max_connections: u32,
   pub database_min_connections: u32,
@@ -72,7 +81,7 @@ impl Default for DBConfig {
   }
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct AuthConfig {
   // jwt
   pub jwt_iss: String,

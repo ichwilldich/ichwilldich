@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use entity::{invalid_jwt, prelude::*};
 use sea_orm::{ActiveValue::Set, prelude::*};
+use tracing::instrument;
 
 pub struct InvalidJwtTable<'db> {
   db: &'db DatabaseConnection,
@@ -11,6 +12,7 @@ impl<'db> InvalidJwtTable<'db> {
     Self { db }
   }
 
+  #[instrument(skip(self))]
   pub async fn invalidate_jwt(
     &self,
     token: String,
@@ -34,6 +36,7 @@ impl<'db> InvalidJwtTable<'db> {
     Ok(())
   }
 
+  #[instrument(skip(self))]
   pub async fn is_token_valid(&self, token: &str) -> Result<bool, DbErr> {
     let res = InvalidJwt::find()
       .filter(invalid_jwt::Column::Token.eq(token))
@@ -43,6 +46,7 @@ impl<'db> InvalidJwtTable<'db> {
     Ok(res.is_none())
   }
 
+  #[instrument(skip(self))]
   pub async fn remove_expired(&self) -> Result<(), DbErr> {
     InvalidJwt::delete_many()
       .filter(invalid_jwt::Column::Exp.lt(Utc::now().naive_utc()))

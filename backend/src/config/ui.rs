@@ -3,6 +3,7 @@ use figment::{
   providers::{Env, Serialized},
 };
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 use url::Url;
 
 #[derive(Serialize, Deserialize, Default, Debug)]
@@ -12,6 +13,7 @@ pub struct SavedConfig {
 }
 
 impl SavedConfig {
+  #[instrument]
   pub fn parse() -> Self {
     let config = Figment::new()
       .merge(Serialized::defaults(Self::default()))
@@ -21,7 +23,7 @@ impl SavedConfig {
   }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MergedConfig {
   pub oidc: MergedSSOConfig,
 }
@@ -36,7 +38,7 @@ pub struct SSOConfig {
   oidc_scope: Option<String>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MergedSSOConfig {
   pub sso_instant_redirect: ConfigValue<bool>,
   pub oidc_client_id: ConfigValue<String>,
