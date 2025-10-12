@@ -3,10 +3,13 @@ use axum::{
   response::{IntoResponse, Response},
 };
 use http::header::{CACHE_CONTROL, PRAGMA};
+use tracing::instrument;
 
+#[derive(Clone, Copy, Debug)]
 pub struct TokenRes;
 
 impl IntoResponse for TokenRes {
+  #[instrument]
   fn into_response(self) -> Response {
     Response::builder()
       .header(CACHE_CONTROL, "no-store")

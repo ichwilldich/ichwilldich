@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 serde = { workspace = true }
 sea-orm = { workspace = true }
-centaurus = { version = "0.2.4", features = [
+centaurus = { version = "0.3.2", features = [
   "axum",
   "logging",
   "argon2",

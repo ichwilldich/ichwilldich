@@ -6,6 +6,7 @@ use tokio::{
   fs::{File, OpenOptions},
   io::AsyncWriteExt,
 };
+use tracing::instrument;
 use uuid::Uuid;
 
 #[async_trait::async_trait]
@@ -17,6 +18,7 @@ pub trait Body: Sized {
 
 /// A temporary file that will be deleted when dropped
 /// This should be used for file uploads because they can be large
+#[derive(Debug)]
 #[allow(unused)]
 pub struct TmpFile(pub PathBuf);
 #[derive(Debug)]
@@ -24,6 +26,7 @@ pub struct TmpFile(pub PathBuf);
 pub struct FileWriter(File, PathBuf);
 
 impl Drop for TmpFile {
+  #[instrument]
   fn drop(&mut self) {
     if self.0.exists() {
       let _ = std::fs::remove_file(&self.0);
@@ -44,6 +47,7 @@ impl Body for () {
 impl Body for TmpFile {
   type Writer = FileWriter;
 
+  #[instrument]
   async fn from_writer(writer: Self::Writer) -> Result<Self> {
     writer.0.sync_all().await?;
     drop(writer.0);

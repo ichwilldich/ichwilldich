@@ -2,6 +2,7 @@ use axum::Extension;
 use centaurus::{FromReqExtension, error::Result};
 
 pub use env::EnvConfig;
+use tracing::instrument;
 
 use crate::{
   config::ui::{MergedConfig, SavedConfig},
@@ -20,12 +21,13 @@ router_extension!(
   }
 );
 
-#[derive(Clone, FromReqExtension)]
+#[derive(Clone, FromReqExtension, Debug)]
 pub struct AppConfig {
   pub config: MergedConfig,
 }
 
 impl AppConfig {
+  #[instrument(skip(db))]
   pub async fn new(db: &Connection) -> Self {
     let env = SavedConfig::parse();
     let ui = db
@@ -40,6 +42,7 @@ impl AppConfig {
   }
 
   #[allow(unused)]
+  #[instrument(skip(db))]
   pub async fn save_config(&self, db: &Connection, config: &MergedConfig) -> Result<()> {
     let config = config.to_ui();
     db.config().save_config(&config).await?;

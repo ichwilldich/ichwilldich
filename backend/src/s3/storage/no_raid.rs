@@ -10,6 +10,7 @@ use tokio::{
 
 use crate::s3::storage::Storage;
 
+#[derive(Debug)]
 pub struct NoRaid {
   base_path: PathBuf,
 }

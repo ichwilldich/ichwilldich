@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::path::{self, Path};
 use std::{io::Result, path::PathBuf};
 
@@ -11,7 +12,7 @@ use crate::s3::interface::S3Interface;
 pub mod no_raid;
 
 #[async_trait::async_trait]
-pub trait Storage {
+pub trait Storage: Debug {
   async fn create_dir(&self, path: &Path) -> Result<()>;
   async fn delete_dir(&self, path: &Path) -> Result<()>;
   async fn list_dir(&self, path: &Path) -> Result<Vec<String>>;

@@ -1,7 +1,11 @@
 use axum::extract::Request;
-use centaurus::{bail, error::Result};
+use centaurus::{
+  bail,
+  error::{ErrorReportStatusExt, Result},
+};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use futures::StreamExt;
+use http::StatusCode;
 use tracing::instrument;
 
 use crate::s3::{
@@ -67,8 +71,10 @@ fn parse_query(query: &[(String, String)]) -> Result<QueryData> {
     match k.as_str() {
       "X-Amz-Algorithm" => algorithm = Some(v.to_string()),
       "X-Amz-Credential" => credential = Some(v.parse()?),
-      "X-Amz-Date" => date = Some(NaiveDateTime::parse_from_str(v, DATE_FORMAT)?),
-      "X-Amz-Expires" => expires = Some(v.parse()?),
+      "X-Amz-Date" => {
+        date = Some(NaiveDateTime::parse_from_str(v, DATE_FORMAT).status(StatusCode::BAD_REQUEST)?)
+      }
+      "X-Amz-Expires" => expires = Some(v.parse().status(StatusCode::BAD_REQUEST)?),
       "X-Amz-SignedHeaders" => {
         let headers = v.split(';').map(|s| s.to_string()).collect::<Vec<_>>();
         if !headers.iter().any(|s| s.eq_ignore_ascii_case("host")) {

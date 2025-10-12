@@ -1,6 +1,7 @@
 use centaurus::error::Result;
 use entity::config;
 use sea_orm::{ActiveValue::Set, prelude::*};
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::config::ui::SavedConfig;
@@ -14,6 +15,7 @@ impl<'db> ConfigTable<'db> {
     Self { db }
   }
 
+  #[instrument(skip(self))]
   pub async fn get_config(&self) -> Result<SavedConfig> {
     let config = config::Entity::find().one(self.db).await?;
     let config = if let Some(config) = config {
@@ -27,6 +29,7 @@ impl<'db> ConfigTable<'db> {
     Ok(config)
   }
 
+  #[instrument(skip(self))]
   pub async fn save_config(&self, config: &SavedConfig) -> Result<()> {
     let config_json = serde_json::to_value(config)?;
     let existing = config::Entity::find().one(self.db).await?;

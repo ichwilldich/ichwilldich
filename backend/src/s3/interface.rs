@@ -1,12 +1,13 @@
 use axum::Extension;
 use centaurus::{FromReqExtension, bail, error::Result, path};
+use tracing::instrument;
 
 use crate::{config::EnvConfig, macros::DualRouterExt, router_extension, s3::BUCKET_DIR};
 use std::{ops::Deref, sync::Arc};
 
 use crate::s3::storage::Storage;
 
-#[derive(Clone, FromReqExtension)]
+#[derive(Clone, FromReqExtension, Debug)]
 pub struct S3Interface {
   storage: Arc<dyn Storage + Send + Sync>,
 }
@@ -17,6 +18,8 @@ impl S3Interface {
       storage: Arc::new(storage),
     }
   }
+
+  #[instrument]
   pub async fn create_bucket(&self, bucket: &String) -> Result<()> {
     if self.list_dir(&path!(BUCKET_DIR)).await?.contains(bucket) {
       bail!(CONFLICT, "Bucket {bucket} already exists");
@@ -27,6 +30,7 @@ impl S3Interface {
     Ok(())
   }
 
+  #[instrument]
   pub async fn delete_bucket(&self, bucket: &String) -> Result<()> {
     if !self.list_dir(&path!(BUCKET_DIR)).await?.contains(bucket) {
       bail!(NOT_FOUND, "Bucket {bucket} not found");
@@ -42,6 +46,7 @@ impl S3Interface {
     Ok(())
   }
 
+  #[instrument]
   pub async fn list_buckets(&self) -> Result<Vec<String>> {
     let buckets = self.list_dir(&path!(BUCKET_DIR)).await?;
     Ok(buckets)

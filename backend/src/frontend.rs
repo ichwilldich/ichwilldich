@@ -8,6 +8,7 @@ use axum::{
 use centaurus::FromReqExtension;
 use http::StatusCode;
 use hyper_util::{client::legacy::connect::HttpConnector, rt::TokioExecutor};
+use tracing::instrument;
 
 use crate::{macros::DualRouterExt, router_extension};
 
@@ -47,7 +48,7 @@ router_extension!(
 
 type Client = hyper_util::client::legacy::Client<HttpConnector, Body>;
 
-#[derive(FromReqExtension, Clone)]
+#[derive(FromReqExtension, Clone, Debug)]
 struct FrontendState {
   client: Client,
   frontend_url: &'static str,
@@ -55,8 +56,9 @@ struct FrontendState {
   _handle: std::sync::Arc<tokio::process::Child>,
 }
 
+#[instrument(level = "trace", skip(state, req))]
 async fn handler(state: FrontendState, mut req: Request) -> Result<Response, StatusCode> {
-  tracing::info!("Forwarding request to frontend: {}", req.uri());
+  tracing::trace!("Forwarding request to frontend: {}", req.uri());
   let path = req.uri().path();
   let path_query = req
     .uri()

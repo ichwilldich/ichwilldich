@@ -2,9 +2,10 @@ use axum::{Extension, Router};
 use centaurus::init::{
   axum::{add_base_layers, listener_setup, run_app},
   logging::init_logging,
+  metrics::init_metrics,
 };
 use tokio::{fs, join, net::TcpListener};
-use tracing::info;
+use tracing::{info, instrument};
 
 use crate::{
   config::{AppConfig, EnvConfig},
@@ -19,6 +20,7 @@ mod health;
 mod macros;
 mod s3;
 
+#[derive(Debug)]
 pub struct App {
   app: Router,
   app_listener: TcpListener,
@@ -27,19 +29,39 @@ pub struct App {
 }
 
 impl App {
+  #[instrument]
   pub async fn new() -> App {
     let config = EnvConfig::parse();
     init_logging(&config.base);
+    let handle = init_metrics(config.metrics_name.clone());
+
     fs::create_dir_all(&config.storage_path)
       .await
       .expect("failed to create storage path");
 
+    let metrics_enabled = config.metrics_enabled;
+    let metrics_name = config.metrics_name.clone();
+    let metrics_labels = config.metrics_labels.clone();
+
     let app_listener = listener_setup(config.base.port).await;
     let s3_listener = listener_setup(config.s3_port).await;
 
-    let (app, s3) = (router(&config).await, s3_router(&config).await)
+    let (mut app, mut s3) = (router(&config).await, s3_router(&config).await)
       .state(config)
       .await;
+
+    use centaurus::init::metrics::metrics;
+    let mut app_labels = vec![("api".into(), "management".into())];
+    app_labels.extend(metrics_labels.clone());
+    let mut s3_labels = vec![("api".into(), "s3".into())];
+    s3_labels.extend(metrics_labels);
+
+    if metrics_enabled {
+      app = app
+        .metrics(metrics_name.clone(), handle.clone(), app_labels)
+        .await;
+      s3 = s3.metrics(metrics_name, handle, s3_labels).await;
+    }
 
     Self {
       app,
@@ -49,6 +71,7 @@ impl App {
     }
   }
 
+  #[instrument(skip(self))]
   pub async fn run(self) {
     info!("Starting s3 sever");
     join!(
@@ -58,18 +81,23 @@ impl App {
   }
 }
 
+#[instrument(skip(config))]
 async fn router(config: &EnvConfig) -> Router {
+  use centaurus::init::metrics::metrics_route;
   frontend::router()
     .nest(
       "/api",
       Router::new()
         .nest("/auth", auth::router())
-        .merge(health::router()),
+        .merge(health::router())
+        .metrics_route()
+        .await,
     )
-    .add_base_layers(&config.base)
+    .add_base_layers_filtered(&config.base, |path| path.starts_with("/api"))
     .await
 }
 
+#[instrument(skip(config))]
 async fn s3_router(config: &EnvConfig) -> Router {
   s3::router().add_base_layers(&config.base).await
 }

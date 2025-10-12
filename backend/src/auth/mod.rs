@@ -1,5 +1,6 @@
 use axum::{Extension, Json, Router, routing::get};
 use serde::Serialize;
+use tracing::instrument;
 
 use crate::{
   auth::{
@@ -61,6 +62,7 @@ struct SSOConfig {
   instant_redirect: bool,
 }
 
+#[instrument]
 async fn get_sso_type(oidc: OidcState, config: AppConfig) -> Json<SSOConfig> {
   let sso_type = if oidc.config.is_some() {
     SSOType::Oidc
