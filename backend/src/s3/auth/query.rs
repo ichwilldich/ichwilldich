@@ -1,24 +1,27 @@
-use axum::extract::Request;
+use axum::{RequestPartsExt, extract::Request};
 use centaurus::{bail, error::Result};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use futures::StreamExt;
 use tracing::instrument;
 
-use crate::s3::{
-  auth::{
-    Identity, S3Auth, SECRET,
-    body::{Body, BodyWriter},
-    credential::AWS4,
-    header::check_headers,
-    sig_v4::{ALGORITHM, CanonicalRequest, Payload},
+use crate::{
+  config::EnvConfig,
+  s3::{
+    auth::{
+      Identity, S3Auth, SECRET,
+      body::{Body, BodyWriter},
+      credential::AWS4,
+      header::check_headers,
+      sig_v4::{ALGORITHM, CanonicalRequest, Payload},
+    },
+    header::DATE_FORMAT,
   },
-  header::DATE_FORMAT,
 };
 
 #[instrument]
 pub async fn query_auth<T: Body>(req: Request, query: &[(String, String)]) -> Result<S3Auth<T>> {
   let mut data = parse_query(query)?;
-  let (parts, body) = req.into_parts();
+  let (mut parts, body) = req.into_parts();
 
   check_headers(&parts, &data.auth)?;
   let date = DateTime::<Utc>::from_naive_utc_and_offset(data.date, Utc);
@@ -30,7 +33,9 @@ pub async fn query_auth<T: Body>(req: Request, query: &[(String, String)]) -> Re
     bail!(FORBIDDEN, "Signature mismatch");
   }
 
-  let mut writer = T::Writer::new().await?;
+  let Ok(config) = parts.extract::<EnvConfig>().await;
+
+  let mut writer = T::Writer::new(&config.storage_path).await?;
   let mut stream = body.into_data_stream();
 
   while let Some(chunk) = stream.next().await {
@@ -168,8 +173,12 @@ mod test {
       .collect::<Vec<_>>()
       .join("&");
 
+    unsafe {
+      std::env::set_var("STORAGE_PATH", "/tmp/s3");
+    }
     Request::builder()
       .uri(format!("http://localhost/test.txt?{}", query))
+      .extension(EnvConfig::default())
       .body(Body::new("123".to_string()))
       .unwrap()
   }

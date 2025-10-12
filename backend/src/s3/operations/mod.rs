@@ -1,7 +1,10 @@
 use axum::Router;
 
 mod bucket;
+mod object;
 
 pub fn router() -> Router {
-  bucket::router()
+  Router::new()
+    .merge(bucket::router())
+    .merge(object::router())
 }

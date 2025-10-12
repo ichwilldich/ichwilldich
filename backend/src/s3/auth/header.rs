@@ -18,14 +18,17 @@ use memchr::memchr;
 use sha2::{Digest, Sha256};
 use tracing::instrument;
 
-use crate::s3::{
-  auth::{
-    Identity, S3Auth, SECRET,
-    body::{Body as BodyTrait, BodyWriter},
-    credential::AWS4,
-    sig_v4::{CanonicalRequest, Payload, StringToSign},
+use crate::{
+  config::EnvConfig,
+  s3::{
+    auth::{
+      Identity, S3Auth, SECRET,
+      body::{Body as BodyTrait, BodyWriter},
+      credential::AWS4,
+      sig_v4::{CanonicalRequest, Payload, StringToSign},
+    },
+    header::{AwzContentSha256, AwzContentSha256Header, AwzDate, AwzDecodedContentLength},
   },
-  header::{AwzContentSha256, AwzContentSha256Header, AwzDate, AwzDecodedContentLength},
 };
 
 #[instrument]
@@ -64,7 +67,9 @@ pub async fn header_auth<T: BodyTrait>(req: Request) -> Result<S3Auth<T>> {
     check_headers(&parts, auth)?;
   }
 
-  let mut writer = T::Writer::new().await?;
+  let Ok(config) = parts.extract::<EnvConfig>().await;
+
+  let mut writer = T::Writer::new(&config.storage_path).await?;
   let body = if content_hash.is_chunked() {
     BodyOrHash::Body(body)
   } else {
@@ -301,12 +306,17 @@ pub fn check_headers(parts: &Parts, auth: &AWS4) -> Result<()> {
 
 #[cfg(test)]
 mod test {
-  use crate::s3::auth::credential::AWS4Credential;
+  use crate::{config::EnvConfig, s3::auth::credential::AWS4Credential};
 
   use super::*;
 
   fn request(auth: bool) -> Request {
-    let mut builder = Request::builder().uri("http://localhost/");
+    unsafe {
+      std::env::set_var("STORAGE_PATH", "/tmp/s3");
+    }
+    let mut builder = Request::builder()
+      .uri("http://localhost/")
+      .extension(EnvConfig::default());
 
     if auth {
       builder = builder.header("Authorization", "AWS4-HMAC-SHA256 Credential=test/21240426/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=e737cff2fc158b249645312df82c5a72abc11a42e7b8a20a41cbff1f9430b4c1");
@@ -355,7 +365,8 @@ mod test {
   #[tokio::test]
   async fn test_process_chunks() {
     let (mut parts, body) = process_chunks_data();
-    let mut writer = <Vec<u8> as BodyWriter>::new().await.unwrap();
+    let data_dir = std::env::temp_dir();
+    let mut writer = <Vec<u8> as BodyWriter>::new(&data_dir).await.unwrap();
     let date = DateTime::parse_from_rfc3339("2124-04-26T00:00:00Z")
       .unwrap()
       .with_timezone(&Utc);

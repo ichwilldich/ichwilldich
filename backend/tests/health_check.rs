@@ -1,5 +1,6 @@
 use crate::common::run;
 
+#[allow(unused)]
 mod common;
 
 #[tokio::test]

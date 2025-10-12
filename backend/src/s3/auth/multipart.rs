@@ -1,26 +1,33 @@
 use std::collections::HashMap;
 
-use axum::extract::{FromRequest, Multipart, Request};
+use axum::{
+  RequestExt,
+  extract::{FromRequest, Multipart, Request},
+};
 use base64::prelude::*;
 use centaurus::{bail, error::Result};
 use chrono::NaiveDateTime;
 use eyre::Context;
 use tracing::instrument;
 
-use crate::s3::{
-  auth::{
-    Identity, S3Auth, SECRET,
-    body::{Body, BodyWriter},
-    credential::AWS4Credential,
-    sig_v4::{ALGORITHM, StringToSign},
+use crate::{
+  config::EnvConfig,
+  s3::{
+    auth::{
+      Identity, S3Auth, SECRET,
+      body::{Body, BodyWriter},
+      credential::AWS4Credential,
+      sig_v4::{ALGORITHM, StringToSign},
+    },
+    header::DATE_FORMAT,
   },
-  header::DATE_FORMAT,
 };
 
 #[instrument]
-pub async fn multipart_auth<T: Body>(req: Request) -> Result<S3Auth<T>> {
+pub async fn multipart_auth<T: Body>(mut req: Request) -> Result<S3Auth<T>> {
+  let Ok(config) = req.extract_parts::<EnvConfig>().await;
   let multipart = Multipart::from_request(req, &()).await?;
-  let mut writer = T::Writer::new().await?;
+  let mut writer = T::Writer::new(&config.storage_path).await?;
 
   let data = parse_multipart(multipart, &mut writer).await?;
 
@@ -178,12 +185,16 @@ mod test {
     write!(multipart, "Hello, world!\r\n").unwrap();
     write!(multipart, "--{}--\r\n", BOUNDARY).unwrap();
 
+    unsafe {
+      std::env::set_var("STORAGE_PATH", "/tmp/s3");
+    }
     Ok(
       Request::builder()
         .header(
           CONTENT_TYPE,
           format!("multipart/form-data; boundary={}", BOUNDARY),
         )
+        .extension(EnvConfig::default())
         .body(multipart.into())
         .unwrap(),
     )
@@ -215,11 +226,15 @@ mod test {
     write!(multipart, "Hello, world!\r\n").unwrap();
     write!(multipart, "--{}--\r\n", BOUNDARY).unwrap();
 
+    unsafe {
+      std::env::set_var("STORAGE_PATH", "/tmp/s3");
+    }
     let req = Request::builder()
       .header(
         CONTENT_TYPE,
         format!("multipart/form-data; boundary={}", BOUNDARY),
       )
+      .extension(EnvConfig::default())
       .body(multipart.into())
       .unwrap();
 
@@ -234,7 +249,8 @@ mod test {
     let req = multipart()?;
     let multipart = Multipart::from_request(req, &()).await?;
 
-    let result = parse_multipart(multipart, &mut <() as BodyWriter>::new().await?).await;
+    let data_dir = std::env::temp_dir();
+    let result = parse_multipart(multipart, &mut <() as BodyWriter>::new(&data_dir).await?).await;
     assert!(result.is_ok());
 
     Ok(())

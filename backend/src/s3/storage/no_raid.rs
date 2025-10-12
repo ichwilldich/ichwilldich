@@ -78,4 +78,14 @@ impl Storage for NoRaid {
     let full_path = self.full_path(path).await?;
     fs::remove_file(full_path).await
   }
+
+  async fn mv_file(&self, from: &Path, to: &Path) -> Result<()> {
+    let full_from = if from.is_absolute() {
+      from.to_path_buf()
+    } else {
+      self.full_path(from).await?
+    };
+    let full_to = self.full_path(to).await?;
+    fs::rename(full_from, full_to).await
+  }
 }

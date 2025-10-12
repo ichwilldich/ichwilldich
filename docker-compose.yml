@@ -18,6 +18,7 @@ services:
     pull_policy: always
     volumes:
       - .:/app
+      - ./backend/data:/data
     networks:
       - proxy
     ports:

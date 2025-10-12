@@ -16,7 +16,7 @@ use crate::s3::auth::{
   body::Body, header::header_auth, multipart::multipart_auth, query::query_auth,
 };
 
-mod body;
+pub mod body;
 mod credential;
 mod header;
 mod multipart;
